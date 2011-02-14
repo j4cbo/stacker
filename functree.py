@@ -101,9 +101,9 @@ class Func(object):
 		"""
 
 		# Detect cycles in the call graph
-		if self in history:
+		if self in [ f for f, is_tc in history ]:
 			history += [ (self, False) ]
-			raise Exception("cycle detected: " + str(history))
+			raise Exception("You are a clown: " + str(history))
 
 		# If this is a leaf function, record the path that got us here
 		if not (self.calls or self.tail_calls):

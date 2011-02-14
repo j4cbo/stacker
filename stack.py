@@ -11,7 +11,7 @@ import os
 import functree
 import disasm
 
-MAX_TREES = 15
+MAX_TREES = 10
 
 if len(sys.argv) < 2:
 	print "usage: %s [object]" % sys.argv[0]
@@ -22,6 +22,7 @@ def is_start(name):
 		return True
 	if any(map(name.endswith, [ "_Handler", "_IRQHandler" ])):
 		return True
+	return False
 
 def parse_file(fname):
 	parser = disasm.Parser("arm-none-eabi-")
@@ -37,15 +38,17 @@ def parse_file(fname):
 
 def fixup(funcs):
 	# Wire up function pointers
-	for k, v in funcs.iteritems():
-		if "_FPV_" not in k:
+	for name, func in funcs.iteritems():
+		if "_FPV_" not in name:
 			continue
-		src, suffix = k.split("_FPV_")
+
+		src, suffix = name.split("_FPV_")
+
 		if "FPA_" + suffix not in funcs:
 			print "WARNING: FPA_%s not found" % (suffix, )
 			continue
 
-		funcs["FPA_" + suffix].calls.add(k)
+		funcs["FPA_" + suffix].calls.add(name)
 
 	# Look for setup and mainloop initializers
 	iin, iout = os.popen4("grep -Irh ^INITIALIZER .")
@@ -72,13 +75,13 @@ fixup(known_funcs)
 
 functree = functree.grind_tree(known_funcs, is_start)
 
-for startfunc, terminals in functree:
+for startfunc, paths in functree:
 	print "Stack used from %s: " % (startfunc, )
 
-	if len(terminals) > MAX_TREES:
-		print "\t(%d call paths omitted)" % (len(terminals) - MAX_TREES)
+	if len(paths) > MAX_TREES:
+		print "\t(%d call paths omitted)" % (len(paths) - MAX_TREES)
 
-	for funclist in terminals[-MAX_TREES:]:
+	for funclist in paths[-MAX_TREES:]:
 		pathlist = []
 		s = 0
 
@@ -92,4 +95,3 @@ for startfunc, terminals in functree:
 		print "\tTotal %d: %s" % (s, " -> ".join(pathlist))
 
 	print
-
