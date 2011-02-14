@@ -7,91 +7,91 @@
 # version 2, as published by the Free Software Foundation.
 
 import sys
-import os
 import functree
 import disasm
+import fnmatch
+import ConfigParser
+import fixup
 
 MAX_TREES = 10
 
 if len(sys.argv) < 2:
-	print "usage: %s [object]" % sys.argv[0]
+	print "usage: %s [config]" % sys.argv[0]
 	sys.exit(1)
 
-def is_start(name):
-	if name == "main":
-		return True
-	if any(map(name.endswith, [ "_Handler", "_IRQHandler" ])):
-		return True
-	return False
 
-def parse_file(fname):
-	parser = disasm.Parser("arm-none-eabi-")
+def get_funcs(config):
+	"""Given a config file, parse the binary and return a function dict.
+	"""
+	parser = disasm.Parser(config.get("stacker", "prefix"))
+	fname = config.get("stacker", "binary")
 	funcs = {}
 
 	for name, lines in parser.parse(fname).iteritems():
 		f = functree.Func(name, lines)
-		if f.confusing():
-			f.dump()
+	#	if f.confusing():
+	#		f.dump()
 		funcs[name] = f
 	return funcs
 
 
-def fixup(funcs):
-	# Wire up function pointers
-	for name, func in funcs.iteritems():
-		if "_FPV_" not in name:
-			continue
+def print_tree(tree):
+	for startfunc, paths in tree:
+		print "Stack used from %s: " % (startfunc, )
+	
+		if len(paths) > MAX_TREES:
+			print "\t(%d call paths omitted)" % (len(paths) - MAX_TREES)
 
-		src, suffix = name.split("_FPV_")
+		for funclist in paths[-MAX_TREES:]:
+			pathlist = []
+			s = 0
 
-		if "FPA_" + suffix not in funcs:
-			print "WARNING: FPA_%s not found" % (suffix, )
-			continue
-
-		funcs["FPA_" + suffix].calls.add(name)
-
-	# Look for setup and mainloop initializers
-	iin, iout = os.popen4("grep -Irh ^INITIALIZER .")
-	inits = [ t.split('(', 1)[1].strip(' );').split(',')
-                  for t in iout.read().split('\n') if ('(' in t) ]
-	for group, val in inits:
-		group = group.strip(' ')
-		val = val.strip(' ')
-
-		if val not in funcs:
-			print "WARNING: non-linked initializer %s" % (val, )
-			continue
-
-		if group in [ "hardware", "protocol" ]:
-			funcs["FPA_init"].calls.add(val)
-		elif group == "poll":
-			funcs["main"].calls.add(val)
-		else:
-			print "WARNING: group %s unknown" % (group, )
-
-
-known_funcs = parse_file(sys.argv[1])
-fixup(known_funcs)
-
-functree = functree.grind_tree(known_funcs, is_start)
-
-for startfunc, paths in functree:
-	print "Stack used from %s: " % (startfunc, )
-
-	if len(paths) > MAX_TREES:
-		print "\t(%d call paths omitted)" % (len(paths) - MAX_TREES)
-
-	for funclist in paths[-MAX_TREES:]:
-		pathlist = []
-		s = 0
-
-		for i, (f, is_tc) in enumerate(funclist):
-			if is_tc:
-				pathlist.append(str(f) + " [TC]")
-			else:
-				pathlist.append(str(f))
-				s += f.stack
+			for i, (f, is_tc) in enumerate(funclist):
+				if is_tc:
+					pathlist.append(str(f) + " [TC]")
+				else:
+					pathlist.append(str(f))
+					s += f.stack
 			
-		print "\tTotal %d: %s" % (s, " -> ".join(pathlist))
+			print "\tTotal %d: %s" % (s, " -> ".join(pathlist))
 
-	print
+		print
+
+
+def entry_predicate(config):
+	"""Produce a predicate to determine if a function is a start point.
+	"""
+	try:
+		estr = config.get("entry", "entries")
+	except ConfigParser.NoOptionError:
+		estr = "main"
+
+	entries = estr.split()
+
+	return lambda name: any(
+		fnmatch.fnmatch(name, pattern)
+		for pattern
+		in entries
+	)
+
+
+def main(configfile):
+	config = ConfigParser.ConfigParser()
+	config.optionxform = str
+	config.read(configfile)
+
+	if not config.items("stacker"):
+		print "No stacker section found in config file."
+		sys.exit(1)
+
+	funcs = get_funcs(config)
+
+	for f in fixup.all_fixups:
+		f(config, funcs)
+
+	tree = functree.grind_tree(funcs, entry_predicate(config))
+
+	print_tree(tree)
+
+if __name__ == "__main__":
+	main(sys.argv[1])
