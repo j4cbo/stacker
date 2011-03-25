@@ -22,6 +22,23 @@ def print_new_edges(fixup, new_edges):
 		print "    %s -> %s" % (name, ", ".join(targets))
 
 
+def fixup_ignore_callees(config, funcs):
+	if "ignore_callees" not in config.sections():
+		return
+
+	for src, dest in config.items("ignore_callees"):
+		if src not in funcs:
+			print "WARNING: ignore_callees: %s not found" % src
+			continue
+
+		sf = funcs[src]
+
+		dests = dest.split()
+		for d in dests:
+			sf.calls.remove(d)
+			print "Ignoring call %s -> %s" % (src, d)
+
+
 def fixup_by_name_regex(config, funcs):
 	"""Add edges to the graph by regexes based on function name.
 
@@ -50,8 +67,9 @@ def fixup_by_name_regex(config, funcs):
 
 			# Now, produce a target regex.
 			fdest = dest
-			for i in range(1, min(match.lastindex, 9) + 1):
-				fdest = fdest.replace("\\%s" % i, match.group(i))
+			if match.lastindex:
+				for i in range(1, min(match.lastindex, 9) + 1):
+					fdest = fdest.replace("\\%s" % i, match.group(i))
 
 			wiring[fdest + "$"].add(name)
 
@@ -138,4 +156,4 @@ def fixup_by_table(config, funcs):
 	print_new_edges("tables", new_edges)
 
 
-all_fixups = [ fixup_by_name_regex, fixup_by_table ]
+all_fixups = [ fixup_by_name_regex, fixup_by_table, fixup_ignore_callees ]
