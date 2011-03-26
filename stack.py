@@ -29,8 +29,6 @@ def get_funcs(config):
 
 	for name, lines in parser.parse(fname).iteritems():
 		f = functree.Func(name, lines)
-	#	if f.confusing():
-	#		f.dump()
 		funcs[name] = f
 	return funcs
 
@@ -86,8 +84,12 @@ def main(configfile):
 
 	funcs = get_funcs(config)
 
-	for f in fixup.all_fixups:
-		f(config, funcs)
+	for ff in fixup.all_fixups:
+		ff(config, funcs)
+
+	for f in funcs.itervalues():
+		if f.confusing():
+			f.dump()
 
 	tree = functree.grind_tree(funcs, entry_predicate(config))
 

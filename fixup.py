@@ -65,6 +65,8 @@ def fixup_by_name_regex(config, funcs):
 			match = regex.match(name)
 			if not match: continue
 
+			funcs[name].excuse("indirect-jump")
+
 			# Now, produce a target regex.
 			fdest = dest
 			if match.lastindex:
@@ -151,9 +153,26 @@ def fixup_by_table(config, funcs):
 
 		for caller in group_callers[group]:
 			funcs[caller].calls.add(val)
+			funcs[caller].excuse("indirect-jump")
 			new_edges[caller].add(val)
 			
 	print_new_edges("tables", new_edges)
 
 
-all_fixups = [ fixup_by_name_regex, fixup_by_table, fixup_ignore_callees ]
+def ignore_confusions(config, funcs):
+	if "ignore_confusions" not in config.sections():
+		return
+
+	for src, dest in config.items("ignore_confusions"):
+		if src not in funcs:
+			print "WARNING: ignore_confusions: %s not found" % src
+			continue
+
+		sf = funcs[src]
+
+		for c in dest.split():
+			sf.excuse(c)
+			print "Ignoring %s in %s" % (c, src)
+
+
+all_fixups = [ fixup_by_name_regex, fixup_by_table, fixup_ignore_callees, ignore_confusions ]

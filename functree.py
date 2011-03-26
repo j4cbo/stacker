@@ -17,7 +17,7 @@ class Func(object):
 		self.stack = 0
 		self.calls = set()
 		self.tail_calls = set()
-		self.confusions = []
+		self.confusions = set()
 		self.code = code
 
 		# Turn code into pseudocode
@@ -39,7 +39,7 @@ class Func(object):
 		depth = 0
 
 		# Helper
-		confuse = self.confusions.append
+		confuse = self.confusions.add
 
 		for op, v in self.pcode:
 			if op == "stack":
@@ -68,8 +68,7 @@ class Func(object):
 					confuse("tablejump-with-stack")
 
 			elif op == "indirectjump":
-				if not self.name.startswith("FPA_"):
-					confuse("indirect-jump")
+				confuse("indirect-jump")
 
 			elif op == "call":
 				self.calls.add(v)
@@ -88,6 +87,12 @@ class Func(object):
 	def confusing(self):
 		"""Return True if we were confused by this function."""
 		return bool(self.confusions)
+
+
+	def excuse(self, transgression):
+		"""If we were confused because of something, forget it."""
+		if transgression in self.confusions:
+			self.confusions.remove(transgression)
 
 
 	def walk_graph(self, func_dict, history = []):
