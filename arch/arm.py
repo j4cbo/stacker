@@ -6,7 +6,7 @@
 # Which ARM instructions do we know *won't* affect control flow or stack?
 safe_insn_bases = [
 	"adc", "add", "adds", "and", "ands", "asr", "asrs",
-	"bfi", "bic", "bics", "bkpt",
+	"bfi", "bfc", "bic", "bics", "bkpt",
 	"clz", "cmn", "cmp", "cps", "cpsid", "cpsie", "cpy",
 	"eor", "eors",
 	"it", "ite", "itet", "itete", "itett", "itt", "itte", "ittet",
@@ -117,6 +117,10 @@ def canonicalize_line(function_name, line):
 		return "stack", -operand
 	elif insn == "sub" and operand:
 		return "stack", operand
+	elif insn == "add.w" and len(pargs) == 3 and pargs[0:2] == ["sp", "sp"]:
+		return "stack", -int(pargs[2][1:])
+	elif insn == "sub.w" and len(pargs) == 3 and pargs[0:2] == ["sp", "sp"]:
+		return "stack", int(pargs[2][1:])
 	elif insn in [ "b.n", "b.w" ] and target:
 		return [
 			("tailcall", target),
