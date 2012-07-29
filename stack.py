@@ -1,4 +1,4 @@
-#!/usr/bin/python2.5
+#!/usr/bin/python
 #
 # Stack analyzer, copyright (c) 2007-2011 Jacob Potter.
 #
