@@ -23,6 +23,7 @@ safe_insn_bases = [
 	"teq", "tst",
 	"ubfx", "udiv", "umull", "uxtb", "uxth",
 	"wfe", "wfi",
+	"ssat", "usat",
 
 	# NOTE: these are only safe because we translate ldmia and stmdb on sp to push and pop.
 	"ldmia", "stmdb", "stmia", "ldmdb",
@@ -108,11 +109,8 @@ def canonicalize_line(function_name, line):
 		if pargs[-1] == 'pc':
 			ret.append(("ret", True))
 		return ret
-	elif insn == "stmia.w":
-		ret = [ ("stack", -4 * (len(pargs) - 1)) ]
-		if pargs[-1] == 'pc':
-			ret.append(("ret", True))
-		return ret
+	elif insn in ("ldmia.w", "stmia.w") and args.startswith("sp, "):
+		return None
 	elif insn == "add" and operand:
 		return "stack", -operand
 	elif insn == "sub" and operand:
