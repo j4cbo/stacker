@@ -150,6 +150,8 @@ def canonicalize_line(function_name, line):
 		return "stack", -int(offset)
 	elif insn == "blx":
 		return "indirectjump", args
+	elif insn == "mov" and len(pargs) == 2 and pargs[0] == "pc":
+		return "indirectjump", pargs[1]
 	else:
 		return "unknown", line
 
