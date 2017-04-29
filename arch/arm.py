@@ -24,6 +24,7 @@ safe_insn_bases = [
 	"ubfx", "udiv", "umull", "uxtb", "uxth",
 	"wfe", "wfi",
 	"ssat", "usat",
+	"dsb", "isb",
 
 	# NOTE: these are only safe because we translate ldmia and stmdb on sp to push and pop.
 	"ldmia", "stmdb", "stmia", "ldmdb",
