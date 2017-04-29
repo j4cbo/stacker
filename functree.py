@@ -40,6 +40,8 @@ class Func(object):
 
 		# Helper
 		confuse = self.confusions.add
+		
+		ret_with_stack_ok = False
 
 		for op, v in self.pcode:
 			if op == "stack":
@@ -75,10 +77,17 @@ class Func(object):
 
 			elif op == "tailcall":
 				self.tail_calls.add(v)
+			
+			elif op == "restore_fp":
+				ret_with_stack_ok = True
 
 			else:
 				confuse("unknown-op")
 
+		# If we use the frame pointer, it's okay to ret-with-stack.
+		if ret_with_stack_ok and "ret-with-stack" in self.confusions:
+			self.confusions.remove("ret-with-stack")
+		
 		# If we might tail-call or regular-call, count it as regular.
 		self.tail_calls -= self.calls
 		self.stack = peak

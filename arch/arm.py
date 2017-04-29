@@ -152,6 +152,8 @@ def canonicalize_line(function_name, line):
 		return "indirectjump", args
 	elif insn == "mov" and len(pargs) == 2 and pargs[0] == "pc":
 		return "indirectjump", pargs[1]
+	elif insn == "mov" and len(pargs) == 2 and pargs[0:2] == ["sp", "r7"]:
+		return "restore_fp", None
 	else:
 		return "unknown", line
 
