@@ -5,7 +5,7 @@
 
 # Which ARM instructions do we know *won't* affect control flow or stack?
 safe_insn_bases = [
-	"adc", "add", "adds", "and", "ands", "asr", "asrs",
+	"adc", "add", "adds", "addw", "and", "ands", "asr", "asrs",
 	"bfi", "bfc", "bic", "bics", "bkpt",
 	"clz", "cmn", "cmp", "cps", "cpsid", "cpsie", "cpy",
 	"eor", "eors",
@@ -19,11 +19,12 @@ safe_insn_bases = [
 	"orn", "orr", "orrs",
 	"rbit", "rev", "rev16", "revsh", "ror", "rsb", "rsbs",
 	"sbc", "sbcs", "sdiv", "sev", "strex", "strexb", "strexh", "sub",
-		"subs", "svc", "sxtb", "sxth",
+		"subs", "subw", "svc", "sxtb", "sxth",
 	"teq", "tst",
 	"ubfx", "udiv", "umull", "uxtb", "uxth",
 	"wfe", "wfi",
 	"ssat", "usat",
+	"dsb", "isb",
 
 	# NOTE: these are only safe because we translate ldmia and stmdb on sp to push and pop.
 	"ldmia", "stmdb", "stmia", "ldmdb",
@@ -124,7 +125,7 @@ def canonicalize_line(function_name, line):
 			("tailcall", target),
 			("ret", True)
 		]
-	elif insn in [ "bne.n", "bne.w" ]:
+	elif insn in [ "bne.n", "bne.w", "bcc.n", "bcc.w", "beq.n", "beq.w" ]:
 		# XXX: This is a hack. We assume that all non-local
 		# branches are conditional tail-calls; if this was
 		# supposed to be something else, then the control flow
@@ -149,6 +150,10 @@ def canonicalize_line(function_name, line):
 		return "stack", -int(offset)
 	elif insn == "blx":
 		return "indirectjump", args
+	elif insn == "mov" and len(pargs) == 2 and pargs[0] == "pc":
+		return "indirectjump", pargs[1]
+	elif insn == "mov" and len(pargs) == 2 and pargs[0:2] == ["sp", "r7"]:
+		return "restore_fp", None
 	else:
 		return "unknown", line
 

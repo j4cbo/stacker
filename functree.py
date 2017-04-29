@@ -40,6 +40,8 @@ class Func(object):
 
 		# Helper
 		confuse = self.confusions.add
+		
+		ret_with_stack_ok = False
 
 		for op, v in self.pcode:
 			if op == "stack":
@@ -75,10 +77,17 @@ class Func(object):
 
 			elif op == "tailcall":
 				self.tail_calls.add(v)
+			
+			elif op == "restore_fp":
+				ret_with_stack_ok = True
 
 			else:
 				confuse("unknown-op")
 
+		# If we use the frame pointer, it's okay to ret-with-stack.
+		if ret_with_stack_ok and "ret-with-stack" in self.confusions:
+			self.confusions.remove("ret-with-stack")
+		
 		# If we might tail-call or regular-call, count it as regular.
 		self.tail_calls -= self.calls
 		self.stack = peak
@@ -105,11 +114,23 @@ class Func(object):
 		func tail-calls the next function in the list.
 		"""
 
+		# We behave a little differently if we are in panic().  For
+		# one, we are allowed to recur through the call tree if we
+		# are a child of panic(), and for another, we stop at the
+		# second call of panic() if we are a child of panic().
+		ispanic = ("panic" in func_dict) and (func_dict["panic"] in [ f for f, is_tc in history ])
+
 		# Detect cycles in the call graph
-		if self in [ f for f, is_tc in history ]:
+		if (not ispanic) and (self in [ f for f, is_tc in history ]):
 			history += [ (self, False) ]
 			raise Exception("You are a clown: " + str(history))
 
+		# If this is the second time through panic(), assume that
+		# can't really happen, and decide to leave things be.
+		if ispanic and self.name == "panic":
+			yield history
+			return
+		
 		# If this is a leaf function, record the path that got us here
 		if not (self.calls or self.tail_calls):
 			yield history + [ (self, False) ]
