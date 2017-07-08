@@ -63,7 +63,7 @@ This turns a function into a stream of pseudo-operations like "change stack
 usage" (specified with a positive or negative delta), "call", "tail-call",
 etc. Then, Stacker parses these sequences against its understanding of
 function idioms produced by compilers, like return site duplication. Each
-function is reduced to a number of bytes of stack uage, a set of possible
+function is reduced to a number of bytes of stack usage, a set of possible
 callees, and a set of possible tail-callees. At this point, Stacker can
 assemble the call graphs in the program, and find the total stack space
 used by the longest such path.
